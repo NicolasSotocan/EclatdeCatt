@@ -16,6 +16,16 @@ export default function DashboardEclat() {
     document.body.appendChild(script);
   }, []);
 
+  // Función para corregir las fechas de Excel (números a texto legible)
+  const formatearFechaExcel = (valor) => {
+    if (!valor) return "Sin fecha";
+    if (typeof valor === 'number') {
+      const fecha = new Date((valor - 25569) * 86400 * 1000);
+      return fecha.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+    return valor.toString();
+  };
+
   const manejarArchivo = (e) => {
     const file = e.target.files[0];
     const reader = new FileReader();
@@ -24,21 +34,18 @@ export default function DashboardEclat() {
       // @ts-ignore
       const wb = XLSX.read(bstr, { type: 'binary' });
       
-      // Buscamos las pestañas sin importar minúsculas/mayúsculas
       const nombreFicha = wb.SheetNames.find(n => n.toLowerCase().includes("ficha")) || wb.SheetNames[0];
       const nombreHistorial = wb.SheetNames.find(n => n.toLowerCase().includes("historial")) || wb.SheetNames[1];
       
       const dataFicha = XLSX.utils.sheet_to_json(wb.Sheets[nombreFicha]);
       const dataHistorial = XLSX.utils.sheet_to_json(wb.Sheets[nombreHistorial]);
 
-      console.log("Datos Ficha:", dataFicha); // Para depuración
       setHojaFicha(dataFicha);
       setHojaHistorial(dataHistorial);
     };
     reader.readAsBinaryString(file);
   };
 
-  // Buscamos el nombre del paciente probando ambas variantes de la "P"
   const obtenerNombre = (obj) => obj['Nombre Paciente'] || obj['Nombre paciente'];
 
   const listaPacientes = [...new Set(hojaFicha.map(d => obtenerNombre(d)))]
@@ -66,21 +73,21 @@ export default function DashboardEclat() {
             {busqueda && (
               <div className="absolute z-50 w-full bg-white border shadow-xl mt-1 max-h-60 overflow-y-auto rounded-b-md">
                 {listaPacientes.map(p => (
-                  <button key={p} onClick={() => { setPacienteSel(p); setBusqueda(""); setAtencionSel(null); }} className="w-full text-left p-3 hover:bg-[#085162] hover:text-white border-b text-sm transition-colors font-medium">{p}</button>
+                  <button key={p} onClick={() => { setPacienteSel(p); setBusqueda(""); setAtencionSel(null); }} className="w-full text-left p-3 hover:bg-[#085162] hover:text-white border-b text-sm font-medium">{p}</button>
                 ))}
               </div>
             )}
           </div>
           <div className="flex flex-col items-end">
-            <button className="bg-[#085162] text-white px-4 py-2 text-[10px] font-bold rounded shadow hover:bg-[#0a404d] relative transition-all">
-              CARGAR EXCEL (FICHAS COSME)
+            <button className="bg-[#085162] text-white px-4 py-2 text-[10px] font-bold rounded shadow hover:bg-[#0a404d] relative transition-all uppercase tracking-wider">
+              Carga base de datos
               <input type="file" onChange={manejarArchivo} className="absolute inset-0 opacity-0 cursor-pointer" />
             </button>
             {pacienteSel && <h2 className="mt-4 text-xl font-black text-[#085162] uppercase tracking-tighter">{pacienteSel}</h2>}
           </div>
         </div>
 
-        {/* SELECTOR DE VISTA */}
+        {/* TABS */}
         <div className="flex w-full px-6 mt-4 gap-2">
           <button onClick={() => setVista('ficha')} className={`flex-1 p-3 text-lg font-black uppercase transition-all ${vista === 'ficha' ? 'bg-[#085162] text-white' : 'bg-slate-300 text-slate-500'}`}>Ficha clínica</button>
           <button onClick={() => setVista('historial')} className={`flex-1 p-3 text-lg font-black uppercase transition-all ${vista === 'historial' ? 'bg-[#085162] text-white' : 'bg-slate-300 text-slate-500'}`}>Historial</button>
@@ -88,18 +95,17 @@ export default function DashboardEclat() {
 
         <div className="flex-1 p-6">
           {!pacienteSel ? (
-            <div className="text-center mt-20 opacity-30 font-bold uppercase tracking-widest italic">Por favor, cargue el archivo y busque un paciente</div>
+            <div className="text-center mt-20 opacity-30 font-bold uppercase tracking-widest italic">Cargue la base de datos y seleccione un paciente</div>
           ) : (
             <div className="animate-in fade-in duration-500">
               
               {/* VISTA FICHA CLÍNICA */}
               {vista === 'ficha' && (
                 <div className="grid grid-cols-2 gap-6">
-                  {/* Antecedentes: Columnas de 'Alergias' hasta 'Medicamentos actuales' */}
                   <div className="bg-[#085162] text-white p-6 rounded shadow-lg overflow-y-auto max-h-[550px]">
-                    <h3 className="text-[10px] font-black opacity-50 mb-4 border-b border-white/20 pb-2 tracking-[0.2em] uppercase italic">Antecedentes Médicos</h3>
+                    <h3 className="text-[10px] font-black opacity-50 mb-4 border-b border-white/20 pb-2 tracking-[0.2em] uppercase italic">Antecedentes Médicos (A-AB)</h3>
                     <div className="space-y-2">
-                      {datosFichaPaciente && Object.entries(datosFichaPaciente).slice(8, 21).map(([key, val]) => (
+                      {datosFichaPaciente && Object.entries(datosFichaPaciente).slice(8, 28).map(([key, val]) => (
                         <div key={key} className="flex justify-between border-b border-white/10 py-1 text-[11px]">
                           <span className="font-bold opacity-70 uppercase mr-4">{key}</span>
                           <span className="text-right font-medium">{val || "No reporta"}</span>
@@ -107,11 +113,10 @@ export default function DashboardEclat() {
                       ))}
                     </div>
                   </div>
-                  {/* Hábitos: Desde 'Agua diaria' en adelante */}
                   <div className="bg-[#085162] text-white p-6 rounded shadow-lg overflow-y-auto max-h-[550px]">
-                    <h3 className="text-[10px] font-black opacity-50 mb-4 border-b border-white/20 pb-2 tracking-[0.2em] uppercase italic">Hábitos y Estilo de Vida</h3>
+                    <h3 className="text-[10px] font-black opacity-50 mb-4 border-b border-white/20 pb-2 tracking-[0.2em] uppercase italic">Hábitos y Estilo de Vida (AC-AN)</h3>
                     <div className="space-y-2">
-                      {datosFichaPaciente && Object.entries(datosFichaPaciente).slice(28, 40).map(([key, val]) => (
+                      {datosFichaPaciente && Object.entries(datosFichaPaciente).slice(28, 41).map(([key, val]) => (
                         <div key={key} className="flex justify-between border-b border-white/10 py-1 text-[11px]">
                           <span className="font-bold opacity-70 uppercase mr-4">{key}</span>
                           <span className="text-right font-medium">{val || "No reporta"}</span>
@@ -127,12 +132,12 @@ export default function DashboardEclat() {
                 <div className="grid grid-cols-12 gap-6">
                   {/* Columna Fechas */}
                   <div className="col-span-3 border-r pr-4">
-                    <h4 className="bg-[#085162] text-white text-[9px] p-2 font-black uppercase mb-3 text-center tracking-widest">Fecha Atenciones</h4>
+                    <h4 className="bg-[#085162] text-white text-[9px] p-2 font-black uppercase mb-3 text-center tracking-widest italic">Fecha Atenciones</h4>
                     <div className="flex flex-col gap-2">
                       {atencionesPaciente.map((at, idx) => (
                         <div key={idx}>
                           <button onClick={() => setAtencionSel(at)} className={`w-full p-3 text-[11px] font-black rounded-sm shadow-sm transition-all ${atencionSel === at ? 'bg-[#FF7A8A] text-white ring-2 ring-pink-100' : 'bg-[#FF7A8A]/20 text-[#FF7A8A] hover:bg-[#FF7A8A]/40'}`}>
-                            {at['Fecha atención'] || "Sin fecha"}
+                            {formatearFechaExcel(at['Fecha atención'])}
                           </button>
                           {atencionSel === at && (
                             <div className="bg-cyan-50 border-l-4 border-cyan-400 p-3 text-[10px] mt-1 rounded-r italic text-slate-600 shadow-inner">
@@ -148,36 +153,35 @@ export default function DashboardEclat() {
                   {/* Cuadrícula Historial */}
                   <div className="col-span-9 grid grid-cols-2 gap-4">
                     <div className="border-2 border-slate-200 p-4 relative bg-white rounded shadow-sm">
-                      <h5 className="bg-[#085162] text-white text-[9px] px-2 py-1 absolute -top-3 -left-1 font-black uppercase italic tracking-tighter">Biotipo (sebo)</h5>
+                      <h5 className="bg-[#085162] text-white text-[9px] px-2 py-1 absolute -top-3 -left-1 font-black uppercase italic tracking-tighter shadow-sm">Biotipo (sebo)</h5>
                       <div className="mt-2">
                         <p className="text-sm font-black text-slate-800">{atencionSel?.['Biotipo (sebo)'] || '---'}</p>
-                        <div className="grid grid-cols-2 gap-x-4 border-t border-slate-100 pt-2 mt-2">
+                        <div className="grid grid-cols-2 gap-x-4 border-t border-slate-100 pt-2 mt-2 font-medium">
                           {['Frente', 'Mejillas', 'Nariz', 'Mentón'].map(z => (
-                             <p key={z} className="text-[9px] text-slate-500 uppercase font-medium"><span className="font-bold text-slate-400">{z}:</span> {atencionSel?.[z] || '-'}</p>
+                             <p key={z} className="text-[9px] text-slate-500 uppercase"><span className="font-bold text-slate-400">{z}:</span> {atencionSel?.[z] || '-'}</p>
                           ))}
                         </div>
                       </div>
                     </div>
 
                     <div className="border-2 border-slate-200 p-4 relative bg-white rounded shadow-sm">
-                      <h5 className="bg-[#085162] text-white text-[9px] px-2 py-1 absolute -top-3 -left-1 font-black uppercase italic tracking-tighter">Hidratación</h5>
-                      <p className="text-sm font-black mt-2">{atencionSel?.['Hidratación'] || '---'}</p>
-                      <p className="text-[10px] text-slate-400 mt-1 italic font-bold">Nivel: {atencionSel?.['Nivel deshidratación'] || '---'}</p>
+                      <h5 className="bg-[#085162] text-white text-[9px] px-2 py-1 absolute -top-3 -left-1 font-black uppercase italic tracking-tighter shadow-sm">Hidratación</h5>
+                      <p className="text-sm font-black mt-2 text-slate-800">{atencionSel?.['Hidratación'] || '---'}</p>
+                      <p className="text-[10px] text-slate-400 mt-1 italic font-bold uppercase tracking-tighter">Nivel: {atencionSel?.['Nivel deshidratación'] || '---'}</p>
                     </div>
 
                     {['Sensibilidad', 'Turgencia', 'Pigmentación', 'Textura', 'Patologías cutáneas', 'Lesiones y hallazgos'].map((t, i) => (
                       <div key={t} className="border-2 border-slate-200 p-4 relative bg-white rounded shadow-sm">
-                        <h5 className="bg-[#085162] text-white text-[9px] px-2 py-1 absolute -top-3 -left-1 font-black uppercase italic tracking-tighter">{t}</h5>
-                        <p className="text-sm font-black mt-2">{atencionSel?.[t] || '---'}</p>
-                        <span className="absolute bottom-2 right-2 text-2xl opacity-5">{['⚠️','🖐️','🎨','〰️','🛡️','🔍'][i]}</span>
+                        <h5 className="bg-[#085162] text-white text-[9px] px-2 py-1 absolute -top-3 -left-1 font-black uppercase italic tracking-tighter shadow-sm">{t}</h5>
+                        <p className="text-sm font-black mt-2 text-slate-800">{atencionSel?.[t] || '---'}</p>
                       </div>
                     ))}
                     
-                    <div className="col-span-2 bg-cyan-100/50 border-2 border-cyan-200 p-4 rounded-sm shadow-inner">
-                      <h5 className="text-[9px] font-black text-cyan-700 uppercase mb-2 tracking-widest">Información adicional</h5>
+                    <div className="col-span-2 bg-cyan-100/50 border-2 border-cyan-200 p-4 rounded-sm shadow-inner min-h-[100px]">
+                      <h5 className="text-[9px] font-black text-cyan-700 uppercase mb-2 tracking-widest border-b border-cyan-200 pb-1">Información adicional</h5>
                       <div className="grid grid-cols-2 gap-6 text-[11px] italic leading-relaxed">
-                        <div><span className="font-black text-cyan-800 uppercase text-[8px] not-italic block mb-1">Diagnóstico:</span><p>{atencionSel?.['Diagnóstico'] || '---'}</p></div>
-                        <div><span className="font-black text-cyan-800 uppercase text-[8px] not-italic block mb-1">Recomendaciones:</span><p>{atencionSel?.['Recomendaciones'] || '---'}</p></div>
+                        <div><span className="font-black text-cyan-800 uppercase text-[8px] not-italic block mb-1 underline">Diagnóstico:</span><p>{atencionSel?.['Diagnóstico'] || '---'}</p></div>
+                        <div><span className="font-black text-cyan-800 uppercase text-[8px] not-italic block mb-1 underline">Recomendaciones:</span><p>{atencionSel?.['Recomendaciones'] || '---'}</p></div>
                       </div>
                     </div>
                   </div>
